@@ -9,16 +9,27 @@ pipeline {
         SCRIPT_FILE = 'migrate-users.ps1'
     }
 
-    stages {
-        stage('Run Migration Script') {
-            steps {
-                powershell script: """
-                Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-                . "\${env:SCRIPT_FILE}"
-            """
 
+
+    stages {
+
+
+        stage('Checkout Code') {
+            steps {
+                git url: 'https://github.com/SrikarVanaparthy/VM-to-VM-.git', branch: 'main'
             }
         }
+
+
+        stage('Run PowerShell Script') {
+            steps {
+                powershell '''
+                    Set-ExecutionPolicy Bypass -Scope Process -Force
+                    .\\migrate-users.ps1
+                '''
+            }
+        }
+
     }
 
     post {
