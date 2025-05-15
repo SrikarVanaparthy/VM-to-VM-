@@ -10,12 +10,6 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository') {
-            steps {
-                git 'https://github.com/your-username/sql-migration.git'
-            }
-        }
-
         stage('Run Migration Script') {
             steps {
                 powershell script: """
