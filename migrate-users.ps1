@@ -1,30 +1,47 @@
-# migrate-users.ps1
+param (
+    [Parameter(Mandatory=$true)][string]$LocalServer,
+    [Parameter(Mandatory=$true)][string]$RemoteServer,
+    [Parameter(Mandatory=$true)][string]$LocalDB,
+    [Parameter(Mandatory=$true)][string]$RemoteDB,
+    [Parameter(Mandatory=$true)][string]$LocalTable,
+    [Parameter(Mandatory=$true)][string]$RemoteTable,
+    [Parameter(Mandatory=$true)][string]$User,
+     [Parameter(Mandatory=$true)][SecureString]$Password
+)
 
-# SQL Server Credentials and Connection Strings
-$sourceServer = "tcp:10.128.0.16,1433"
-$destServer = "tcp:10.128.0.19,1433"
-$database = "aspnet_DB"
-$username = "sa"
-$password = "P@ssword@123"
-
-# Load SQL Server module (for older systems, install via Install-Module SqlServer)
 Import-Module SqlServer -ErrorAction Stop
 
-# Extract data from VM-1
-$queryExport = "SELECT user_id, user_name, user_email FROM asp_user"
-$sourceConnection = "Server=$sourceServer;Database=$database;User Id=$username;Password=$password;"
+$sourceConnStr = "Server=$LocalServer;Database=$LocalDB;User Id=$User;Password=$Password;"
+$destConnStr = "Server=$RemoteServer;Database=$RemoteDB;User Id=$User;Password=$Password;"
 
-$users = Invoke-Sqlcmd -Query $queryExport -ConnectionString $sourceConnection
+Write-Host "Connecting to source: $LocalServer, database: $LocalDB"
+Write-Host "Connecting to destination: $RemoteServer, database: $RemoteDB"
 
-# Insert into VM-2
-$destConnection = "Server=$destServer;Database=$database;User Id=$username;Password=$password;"
+try {
+    # Fetch all data from source table
+    $data = Invoke-Sqlcmd -Query "SELECT * FROM $LocalTable" -ConnectionString $sourceConnStr
 
-foreach ($user in $users) {
-    $queryInsert = @"
-    INSERT INTO asp_user (user_id, user_name, user_email)
-    VALUES ('$($user.user_id)', '$($user.user_name)', '$($user.user_email)')
+    if ($data.Count -eq 0) {
+        Write-Host "No records found in source table '$LocalTable'. Nothing to migrate."
+        exit 0
+    }
+
+    Write-Host "Fetched $($data.Count) records from source table."
+
+    # Insert each row into destination table
+    foreach ($row in $data) {
+        # Build insert query — adjust columns as needed
+        $insertQuery = @"
+INSERT INTO $RemoteTable (user_id, user_name, user_email)
+VALUES ('$($row.user_id)', '$($row.user_name)', '$($row.user_email)')
 "@
-    Invoke-Sqlcmd -Query $queryInsert -ConnectionString $destConnection
-}
 
-Write-Host "✅ Data migration completed successfully."
+        Invoke-Sqlcmd -Query $insertQuery -ConnectionString $destConnStr
+    }
+
+    Write-Host "Data migration completed successfully."
+
+} catch {
+    Write-Error "An error occurred: $_"
+    exit 1
+}
