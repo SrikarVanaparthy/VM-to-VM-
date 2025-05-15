@@ -13,9 +13,10 @@ pipeline {
         stage('Run Migration Script') {
             steps {
                 powershell script: """
-                    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-                    ./\$env:SCRIPT_FILE
-                """
+                Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+                . "\${env:SCRIPT_FILE}"
+            """
+
             }
         }
     }
